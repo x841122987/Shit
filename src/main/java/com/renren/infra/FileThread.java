@@ -3,45 +3,57 @@ package com.renren.infra;
 import java.io.BufferedWriter;
 import java.io.FileWriter;
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map.Entry;
 
 public class FileThread implements Runnable {
 
 	private String prefix;
-	private HashMap<Long, StringBuffer> map;
+	private CacheManager cache;
 	
-	public FileThread(String prefix, HashMap<Long, StringBuffer> map) {
+	private int shardNumber;
+	private String[] fileNames;
+	
+	public FileThread(String prefix, CacheManager cache) {
 		this.prefix = prefix;
-		this.map = map;
+		this.cache = cache;
 	}
 	
 	@Override
 	public void run() {
+		shardNumber = cache.getShardNumber();
 		
-		long st = System.currentTimeMillis();
-		
-		Iterator<Entry<Long, StringBuffer>> it = map.entrySet().iterator();
-		while(it.hasNext()) {
-			Entry<Long, StringBuffer> entry = it.next();
-			long key = entry.getKey();
-			StringBuffer value = entry.getValue();
-			
-			try {
-				String file = prefix + "/" + key + ".data";
-				BufferedWriter writer = new BufferedWriter(new FileWriter(file, true));
-				
-				writer.append(value);
-				
-				writer.flush();
-				writer.close();
-			} catch (IOException e) {
-				e.printStackTrace();
-			}
+		fileNames = new String[shardNumber];
+		for(int i = 0; i < shardNumber; ++ i) {
+			fileNames[i] = prefix + "/" + i + ".data";
 		}
 		
-		System.out.println("FileThrad used " + (System.currentTimeMillis() - st) + "ms");
+		do {
+			long st = System.currentTimeMillis();
+			
+			boolean empty = true;
+			for(int i = 0; i < shardNumber; ++ i) {
+				String s = cache.getCache(i);
+				if(!s.isEmpty()) {
+					empty = false;
+				}
+				try {
+					BufferedWriter bw = new BufferedWriter(new FileWriter(fileNames[i], true));
+					bw.append(s);
+					bw.flush();
+					bw.close();
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+			if(empty) {
+				break;
+			}
+			System.out.println("FileThread costs " + (System.currentTimeMillis() - st) + "ms");
+//			try {
+//				Thread.sleep(200);
+//			} catch (InterruptedException e) {
+//				e.printStackTrace();
+//			}
+		} while(!Thread.interrupted());
 	}
 
 	public static void main(String[] args) {

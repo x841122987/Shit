@@ -1,6 +1,5 @@
 package com.renren.infra;
 
-import java.util.HashMap;
 import java.util.concurrent.CountDownLatch;
 
 public class MainThread implements Runnable {
@@ -9,39 +8,49 @@ public class MainThread implements Runnable {
 	private long end;
 	private int threadNum;
 	
-	private String prefix;
-	private long fileStep;
+	private CacheManager cache;
 	
-	public HashMap<Long, StringBuffer> map;
+	private CountDownLatch finished;
 
 	private Thread[] threads;
-	private CountDownLatch finished;
 	
-	private FileThread fileThread;
+	private String prefix;
+	private int shardNumber;
+	private Thread fileThread;
+	
 
-	public MainThread(long start, long end, int threadNum, String prefix, long fileStep) {
+	public MainThread(long start, long end, int threadNum, String prefix, int shardNumber) {
 		this.start = start;
 		this.end = end;
 		this.threadNum = threadNum;
 		this.prefix = prefix;
-		this.fileStep = fileStep;
+		this.shardNumber = shardNumber;
 	}
 
 	@Override
 	public void run() {
-		System.out.println("\n========================================");
-		long st = System.currentTimeMillis();
+		cache = new CacheManager(shardNumber);
+		cache.init();
 		
-		map = new HashMap<Long, StringBuffer>();
-		threads = new Thread[threadNum];
 		finished = new CountDownLatch(threadNum);
 		
+		threads = new Thread[threadNum];
 		long step = (end - start) / threadNum;
 		for (int i = 0; i < threadNum; ++i) {
 			threads[i] = new Thread(new CalThread(start + i * step, start
-					+ (i + 1) * step, map, finished, fileStep));
-			threads[i].start();
+					+ (i + 1) * step, cache, finished));
 		}
+
+		fileThread = new Thread(new FileThread(prefix, cache));
+		
+		System.out.println("\n========================================");
+		long st = System.currentTimeMillis();
+		
+		for(int i = 0; i < threadNum; ++ i) {
+			threads[i].start();
+		}	
+		
+		fileThread.start();	
 
 		try {
 			finished.await();
@@ -49,8 +58,11 @@ public class MainThread implements Runnable {
 			e.printStackTrace();
 		}
 		
-		fileThread = new FileThread(prefix, map);
-		fileThread.run();
+		try {
+			fileThread.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
 		
 		System.out.println("MainThrad [" + start + ", " + end + ") used " + (System.currentTimeMillis() - st) + "ms");
 		System.out.println("========================================\n");
@@ -58,8 +70,14 @@ public class MainThread implements Runnable {
 
 	public static void main(String[] args) {
 
-		MainThread main = new MainThread(5730000000L, 5740000000L, 1, "/tmp/shit_test", 1000000L);
-		main.run();
+		Thread main = new Thread(new MainThread(5730000000L, 5740000000L, 4, "/tmp/shit_test", 10000));
+		main.start();
+		try {
+			main.join();
+		} catch (InterruptedException e) {
+			e.printStackTrace();
+		}
+		
 	}
 
 }
