@@ -131,16 +131,26 @@ public class Core {
 		return (z1 % m) * m + (z2 % m);
 	}
 
+	public static boolean check(long x) {
+		do {
+			x = getNext(x);
+		} while(x != X);
+		
+		return true;
+	}
+	
 	public static void main(String[] args) {
 		System.out.println(getNext(X) == X);
 
-		long st = System.currentTimeMillis();
-
-		for (long x = 0L; x < 100000000L; ++x) {
-			getNext(x);
-		}
-
-		System.out.println((System.currentTimeMillis() - st) + "ms");
+		System.out.println(check(47009310L));
+		
+//		long st = System.currentTimeMillis();
+//
+//		for (long x = 0L; x < 100000000L; ++x) {
+//			getNext(x);
+//		}
+//
+//		System.out.println((System.currentTimeMillis() - st) + "ms");
 	}
 
 }
