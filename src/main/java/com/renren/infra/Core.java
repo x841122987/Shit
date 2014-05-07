@@ -141,8 +141,6 @@ public class Core {
 	
 	public static void main(String[] args) {
 		System.out.println(getNext(X) == X);
-
-		System.out.println(check(47009310L));
 		
 //		long st = System.currentTimeMillis();
 //
